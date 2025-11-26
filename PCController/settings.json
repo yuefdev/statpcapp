@@ -1,46 +1,52 @@
 {
   "background": {
     "type": "video",
-    "value": "C:\\Users\\HP\\Downloads\\cosmic-sakura-gaze-moewalls-com.mp4",
+    "value": "/home/purna/İndirilenler/214500_small.mp4",
     "blur": 0
   },
-  "globalStyle": "gradient",
+  "globalStyle": "glass",
+  "globalOpacity": 0.55,
+  "orientation": "portrait",
   "widgets": [
     {
       "id": "cpu-1",
       "type": "cpu",
       "enabled": true,
-      "style": "gradient",
-      "color": "#a855f7",
-      "position": "tl",
-      "size": 120
+      "style": "glass",
+      "color": "#f97316",
+      "position": "tc",
+      "size": 120,
+      "opacity": 1
     },
     {
       "id": "gpu-1",
       "type": "gpu",
       "enabled": true,
-      "style": "gradient",
-      "color": "#22c55e",
-      "position": "tr",
-      "size": 120
+      "style": "glass",
+      "color": "#fb923c",
+      "position": "mr",
+      "size": 120,
+      "opacity": 1
     },
     {
       "id": "ram-1",
       "type": "ram",
       "enabled": true,
-      "style": "gradient",
-      "color": "#06b6d4",
-      "position": "bl",
-      "size": 120
+      "style": "glass",
+      "color": "#fbbf24",
+      "position": "ml",
+      "size": 150,
+      "opacity": 1
     },
     {
       "id": "clock-1",
       "type": "clock",
       "enabled": true,
-      "style": "gradient",
-      "color": "#3b82f6",
-      "position": "br",
-      "size": 123
+      "style": "glass",
+      "color": "#f59e0b",
+      "position": "bc",
+      "size": 107,
+      "opacity": 1
     }
   ],
   "server": {

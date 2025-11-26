@@ -268,14 +268,14 @@ const styles = StyleSheet.create({
   progressBar: { height: '100%', borderRadius: 2 },
   // Modern
   innerGlow: { position: 'absolute', top: 0, left: 0, right: 0, height: 60, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
-  accentBar: { position: 'absolute', left: 0, top: 14, bottom: 14, width: 4, borderRadius: 2 },
+  accentBar: { position: 'absolute', left: -14, top: '15%', bottom: '15%', width: 4, borderRadius: 2 },
   // Glass
   glassShine: { position: 'absolute', top: 0, left: 0, right: 0, height: 1, backgroundColor: 'rgba(255, 255, 255, 0.3)', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
-  glassAccent: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, borderTopLeftRadius: 24, borderBottomLeftRadius: 24 },
+  glassAccent: { position: 'absolute', left: -14, top: 0, bottom: 0, width: 4, borderTopLeftRadius: 24, borderBottomLeftRadius: 24 },
   // Neon
   neonOuterGlow: { position: 'absolute', top: -5, left: -5, right: -5, bottom: -5, borderRadius: 21, borderWidth: 1 },
   // Minimal
-  minimalAccent: { position: 'absolute', left: 0, top: 0, width: 2, height: 24 },
+  minimalAccent: { position: 'absolute', left: -12, top: 0, width: 3, height: '40%' },
   // Gradient
   shimmer: { position: 'absolute', top: 0, bottom: 0, width: 80, backgroundColor: 'rgba(255, 255, 255, 0.15)', transform: [{ skewX: '-20deg' }] },
   gradientBorder: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 20, borderWidth: 2 },

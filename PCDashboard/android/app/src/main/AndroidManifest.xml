@@ -20,7 +20,7 @@
         android:launchMode="singleTask"
         android:windowSoftInputMode="adjustResize"
         android:exported="true"
-        android:screenOrientation="landscape"
+        android:screenOrientation="fullUser"
         android:immersive="true"
         android:keepScreenOn="true"
         android:showWhenLocked="true"

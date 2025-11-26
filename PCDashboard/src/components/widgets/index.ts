@@ -7,3 +7,4 @@ export { default as NetworkWidget } from './NetworkWidget';
 export { default as TemperatureWidget } from './TemperatureWidget';
 export { default as FanWidget } from './FanWidget';
 export { default as ClockWidget } from './ClockWidget';
+export { default as UnifiedWidget } from './UnifiedWidget';

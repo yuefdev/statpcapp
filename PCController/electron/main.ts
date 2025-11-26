@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { HardwareMonitor } from './hardware';
 import { WebSocketServer } from './server';
-import { SettingsManager, Settings, BackgroundConfig } from './settings';
+import { SettingsManager, Settings, BackgroundConfig, TEMPLATES } from './settings';
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
 
@@ -370,7 +370,8 @@ class Application {
       show: false,
       webPreferences: {
         nodeIntegration: true,
-        contextIsolation: false
+        contextIsolation: false,
+        webSecurity: false
       }
     });
 
@@ -544,12 +545,40 @@ class Application {
       return this.settings.get();
     });
 
+    ipcMain.handle('settings:setGlobalOpacity', (_, opacity) => {
+      console.log('📥 IPC setGlobalOpacity:', opacity);
+      this.settings.setGlobalOpacity(opacity);
+      const newSettings = this.settings.get();
+      console.log('📤 Yeni globalOpacity:', newSettings.globalOpacity);
+      this.wsServer.broadcast('settings', newSettings);
+      return newSettings;
+    });
+
     ipcMain.handle('settings:setRefreshRate', (_, rate) => {
       this.settings.setRefreshRate(rate);
       if (this.updateInterval) {
         clearInterval(this.updateInterval);
         this.startUpdateLoop();
       }
+      return this.settings.get();
+    });
+
+    // Template handlers
+    ipcMain.handle('settings:getTemplates', () => {
+      return TEMPLATES;
+    });
+
+    ipcMain.handle('settings:applyTemplate', (_, templateId: string) => {
+      const settings = this.settings.applyTemplate(templateId);
+      if (settings) {
+        this.wsServer.broadcast('settings', settings);
+      }
+      return settings || this.settings.get();
+    });
+
+    ipcMain.handle('settings:setOrientation', (_, orientation: 'portrait' | 'landscape') => {
+      this.settings.setOrientation(orientation);
+      this.wsServer.broadcast('settings', this.settings.get());
       return this.settings.get();
     });
 

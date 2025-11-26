@@ -1,9 +1,20 @@
 import React, { useEffect, useState, useRef, memo } from 'react';
-import { View, StyleSheet, StatusBar, BackHandler, Animated, ImageBackground, Image, NativeModules } from 'react-native';
+import { View, StyleSheet, StatusBar, BackHandler, Animated, ImageBackground, Image, NativeModules, Dimensions } from 'react-native';
 import Video from 'react-native-video';
 import { ConnectionStatus, WidgetGrid } from '../components';
 import { useSocket, useAmoledProtection } from '../hooks';
 import LinearGradient from 'react-native-linear-gradient';
+
+// Orientation locker - native modül kontrolü
+let Orientation: any = null;
+try {
+  // Önce modülü require et
+  const OrientationModule = require('react-native-orientation-locker');
+  Orientation = OrientationModule.default || OrientationModule;
+  console.log('✅ Orientation Locker yüklendi');
+} catch (e) {
+  console.warn('⚠️ react-native-orientation-locker yüklenemedi:', e);
+}
 
 // RNFS'i güvenli şekilde yükle - native modül yoksa null döner
 let RNFS: typeof import('react-native-fs') | null = null;
@@ -61,6 +72,35 @@ const DashboardScreen: React.FC = () => {
   const [detectedType, setDetectedType] = useState<'color' | 'image' | 'gif' | 'video'>('color');
   const currentFileRef = useRef<string | null>(null);
   const taskIdRef = useRef<number>(0);
+
+  // Orientation kontrolü - PC'den gelen ayara göre
+  useEffect(() => {
+    if (!Orientation) {
+      console.warn('⚠️ Orientation değiştirilemedi - modül yüklü değil');
+      return;
+    }
+    
+    const orientation = settings.orientation || 'portrait';
+    console.log('📱 Orientation değişiyor:', orientation);
+    
+    try {
+      if (orientation === 'landscape') {
+        Orientation.lockToLandscape();
+      } else {
+        Orientation.lockToPortrait();
+      }
+    } catch (e) {
+      console.error('Orientation kilitleme hatası:', e);
+    }
+    
+    return () => {
+      if (Orientation) {
+        try {
+          Orientation.unlockAllOrientations();
+        } catch {}
+      }
+    };
+  }, [settings.orientation]);
   
   // Stabil background state - sadece background gerçekten değiştiğinde güncellenir
   const [stableBackground, setStableBackground] = useState({
@@ -345,6 +385,8 @@ const DashboardScreen: React.FC = () => {
           widgets={settings.widgets} 
           systemData={systemData}
           globalStyle={settings.globalStyle}
+          globalOpacity={settings.globalOpacity ?? 1}
+          orientation={settings.orientation}
         />
       </Animated.View>
     </View>

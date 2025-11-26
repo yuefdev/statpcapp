@@ -98,6 +98,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   amoledProtection: DEFAULT_AMOLED_PROTECTION,
   widgets: DEFAULT_WIDGETS,
   globalStyle: 'modern',
+  globalOpacity: 1,
+  orientation: 'portrait',
   screenAlwaysOn: true,
   hideStatusBar: true,
   hideNavigationBar: true,

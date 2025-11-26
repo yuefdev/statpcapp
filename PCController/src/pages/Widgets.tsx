@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Cpu, Monitor, HardDrive, Clock, Move, Paintbrush } from 'lucide-react';
 import { useStore } from '../store/useStore';
@@ -32,7 +32,8 @@ const COLORS = [
   '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ffffff'
 ];
 
-const POSITIONS = [
+// Portrait pozisyonları
+const PORTRAIT_POSITIONS = [
   { id: 'tl', label: '↖', pos: 'Sol Üst' },
   { id: 'tc', label: '↑', pos: 'Orta Üst' },
   { id: 'tr', label: '↗', pos: 'Sağ Üst' },
@@ -43,6 +44,36 @@ const POSITIONS = [
   { id: 'bc', label: '↓', pos: 'Orta Alt' },
   { id: 'br', label: '↘', pos: 'Sağ Alt' }
 ];
+
+// Landscape pozisyonları (yatay mod)
+const LANDSCAPE_POSITIONS = [
+  { id: 'l', label: '◀', pos: 'Sol' },
+  { id: 'cl', label: '◁', pos: 'Sol Orta' },
+  { id: 'cr', label: '▷', pos: 'Sağ Orta' },
+  { id: 'r', label: '▶', pos: 'Sağ' }
+];
+
+// Pozisyon hesaplama için grid noktaları (yüzde olarak) - Portrait
+// Widget'lar kenardan taşmayacak şekilde konumlanır
+const PORTRAIT_POSITION_COORDS: Record<string, { x: number; y: number }> = {
+  tl: { x: 5, y: 12 },
+  tc: { x: 50, y: 12 },
+  tr: { x: 95, y: 12 },
+  ml: { x: 5, y: 42 },
+  mc: { x: 50, y: 42 },
+  mr: { x: 95, y: 42 },
+  bl: { x: 5, y: 72 },
+  bc: { x: 50, y: 72 },
+  br: { x: 95, y: 72 }
+};
+
+// Landscape pozisyonları (yüzde olarak)
+const LANDSCAPE_POSITION_COORDS: Record<string, { x: number; y: number }> = {
+  l: { x: 5, y: 50 },
+  cl: { x: 35, y: 50 },
+  cr: { x: 65, y: 50 },
+  r: { x: 95, y: 50 }
+};
 
 // Stil konfigürasyonları - telefondaki ile tıpatıp aynı
 const getStyleConfig = (styleName: string, color: string) => {
@@ -109,8 +140,17 @@ const getStyleConfig = (styleName: string, color: string) => {
 export default function Widgets() {
   const { settings, selectedWidget, setSelectedWidget, updateWidget, setSettings } = useStore();
   const [localSettings, setLocalSettings] = useState(settings);
+  const [draggedWidget, setDraggedWidget] = useState<string | null>(null);
+  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
+  const [hoveredPosition, setHoveredPosition] = useState<string | null>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
 
   if (!settings) return null;
+
+  // Orientation'a göre pozisyon listesi
+  const isLandscape = settings.orientation === 'landscape';
+  const POSITIONS = isLandscape ? LANDSCAPE_POSITIONS : PORTRAIT_POSITIONS;
+  const POSITION_COORDS = isLandscape ? LANDSCAPE_POSITION_COORDS : PORTRAIT_POSITION_COORDS;
 
   const selected = settings.widgets.find(w => w.id === selectedWidget);
 
@@ -125,19 +165,154 @@ export default function Widgets() {
     setSettings(result);
   };
 
-  const getPositionStyle = (pos: string) => {
-    const styles: Record<string, any> = {
-      tl: { top: 10, left: 10 },
-      tc: { top: 10, left: '50%', transform: 'translateX(-50%)' },
-      tr: { top: 10, right: 10 },
-      ml: { top: '50%', left: 10, transform: 'translateY(-50%)' },
-      mc: { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' },
-      mr: { top: '50%', right: 10, transform: 'translateY(-50%)' },
-      bl: { bottom: 10, left: 10 },
-      bc: { bottom: 10, left: '50%', transform: 'translateX(-50%)' },
-      br: { bottom: 10, right: 10 }
+  const handleGlobalOpacityChange = async (opacity: number) => {
+    console.log('🎚️ Slider değişti:', opacity);
+    const result = await ipcRenderer.invoke('settings:setGlobalOpacity', opacity);
+    console.log('📩 IPC sonucu:', result?.globalOpacity);
+    setSettings(result);
+  };
+
+  // Kullanılan pozisyonları al (sürüklenen widget hariç)
+  const getOccupiedPositions = useCallback((excludeWidgetId?: string): Set<string> => {
+    const occupied = new Set<string>();
+    settings.widgets
+      .filter(w => w.enabled && w.id !== excludeWidgetId)
+      .forEach(w => occupied.add(w.position));
+    return occupied;
+  }, [settings.widgets]);
+
+  // En yakın BOŞ pozisyonu bul
+  const findNearestPosition = useCallback((x: number, y: number, excludeWidgetId?: string): string => {
+    const occupiedPositions = getOccupiedPositions(excludeWidgetId);
+    let nearestPos = 'tl';
+    let minDistance = Infinity;
+
+    Object.entries(POSITION_COORDS).forEach(([posId, coords]) => {
+      // Dolu pozisyonları atla
+      if (occupiedPositions.has(posId)) return;
+      
+      const distance = Math.sqrt(
+        Math.pow(x - coords.x, 2) + Math.pow(y - coords.y, 2)
+      );
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestPos = posId;
+      }
+    });
+
+    return nearestPos;
+  }, [getOccupiedPositions]);
+
+  // Sürükleme başlat
+  const handleDragStart = (e: React.MouseEvent, widgetId: string) => {
+    e.preventDefault();
+    setDraggedWidget(widgetId);
+    setSelectedWidget(widgetId);
+    
+    if (previewRef.current) {
+      const rect = previewRef.current.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
+      setDragPosition({ x, y });
+      setHoveredPosition(findNearestPosition(x, y, widgetId));
+    }
+  };
+
+  // Sürükleme devam
+  const handleDragMove = useCallback((e: React.MouseEvent) => {
+    if (!draggedWidget || !previewRef.current) return;
+
+    const rect = previewRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+    
+    setDragPosition({ x, y });
+    setHoveredPosition(findNearestPosition(x, y, draggedWidget));
+  }, [draggedWidget, findNearestPosition]);
+
+  // Sürükleme bitir
+  const handleDragEnd = useCallback(() => {
+    if (draggedWidget && hoveredPosition) {
+      handleUpdate(draggedWidget, { position: hoveredPosition });
+    }
+    setDraggedWidget(null);
+    setDragPosition(null);
+    setHoveredPosition(null);
+  }, [draggedWidget, hoveredPosition]);
+
+  // Mouse leave - sürüklemeyi iptal et
+  const handleMouseLeave = useCallback(() => {
+    if (draggedWidget) {
+      setDraggedWidget(null);
+      setDragPosition(null);
+      setHoveredPosition(null);
+    }
+  }, [draggedWidget]);
+
+  const getPositionStyle = (pos: string, scale: number = 1) => {
+    // Sabit preview scale - widget boyutu ne olursa olsun önizlemede sabit görünsün
+    const previewScale = 0.5;
+    const actualScale = scale * previewScale;
+    
+    // Portrait layout - kenardan taşmayacak şekilde
+    // Sol kenar widget'ları sola yaslanmış, sağ kenar sağa yaslanmış
+    const portraitStyles: Record<string, any> = {
+      tl: { top: '12%', left: '5%', transformOrigin: 'top left' },
+      tc: { top: '12%', left: '50%', transformOrigin: 'top center' },
+      tr: { top: '12%', left: '95%', transformOrigin: 'top right' },
+      ml: { top: '42%', left: '5%', transformOrigin: 'center left' },
+      mc: { top: '42%', left: '50%', transformOrigin: 'center center' },
+      mr: { top: '42%', left: '95%', transformOrigin: 'center right' },
+      bl: { top: '72%', left: '5%', transformOrigin: 'center left' },
+      bc: { top: '72%', left: '50%', transformOrigin: 'center center' },
+      br: { top: '72%', left: '95%', transformOrigin: 'center right' }
     };
-    return styles[pos] || styles.tl;
+
+    // Landscape pozisyonları
+    const landscapeStyles: Record<string, any> = {
+      l: { top: '50%', left: '5%', transformOrigin: 'center left' },
+      cl: { top: '50%', left: '35%', transformOrigin: 'center center' },
+      cr: { top: '50%', left: '65%', transformOrigin: 'center center' },
+      r: { top: '50%', left: '95%', transformOrigin: 'center right' },
+      tl: { top: '50%', left: '5%', transformOrigin: 'center left' },
+      tr: { top: '50%', left: '35%', transformOrigin: 'center center' },
+      bl: { top: '50%', left: '65%', transformOrigin: 'center center' },
+      br: { top: '50%', left: '95%', transformOrigin: 'center right' }
+    };
+
+    // Transform - pozisyona göre farklı translate
+    const portraitTransforms: Record<string, string> = {
+      tl: `translate(0, 0) scale(${actualScale})`,           // sol üst - sola yasla
+      tc: `translate(-50%, 0) scale(${actualScale})`,        // orta üst - ortala
+      tr: `translate(-100%, 0) scale(${actualScale})`,       // sağ üst - sağa yasla
+      ml: `translate(0, -50%) scale(${actualScale})`,        // sol orta
+      mc: `translate(-50%, -50%) scale(${actualScale})`,     // tam orta
+      mr: `translate(-100%, -50%) scale(${actualScale})`,    // sağ orta
+      bl: `translate(0, -50%) scale(${actualScale})`,        // sol alt
+      bc: `translate(-50%, -50%) scale(${actualScale})`,     // orta alt
+      br: `translate(-100%, -50%) scale(${actualScale})`     // sağ alt
+    };
+
+    const landscapeScale = 0.55;
+    const lActualScale = scale * landscapeScale;
+    const landscapeTransforms: Record<string, string> = {
+      l: `translate(0, -50%) scale(${lActualScale})`,
+      cl: `translate(-50%, -50%) scale(${lActualScale})`,
+      cr: `translate(-50%, -50%) scale(${lActualScale})`,
+      r: `translate(-100%, -50%) scale(${lActualScale})`,
+      tl: `translate(0, -50%) scale(${lActualScale})`,
+      tr: `translate(-50%, -50%) scale(${lActualScale})`,
+      bl: `translate(-50%, -50%) scale(${lActualScale})`,
+      br: `translate(-100%, -50%) scale(${lActualScale})`
+    };
+
+    const baseStyles = isLandscape ? landscapeStyles : portraitStyles;
+    const transforms = isLandscape ? landscapeTransforms : portraitTransforms;
+    
+    return {
+      ...baseStyles[pos],
+      transform: transforms[pos]
+    } || { ...portraitStyles.tl, transform: portraitTransforms.tl };
   };
 
   return (
@@ -153,15 +328,113 @@ export default function Widgets() {
       <div className={styles.editor}>
         <div className={styles.previewSection}>
           <div className={styles.card}>
-            <h3 className={styles.cardTitle}>📺 Önizleme (Telefondaki Görünüm)</h3>
+            <h3 className={styles.cardTitle}>
+              📺 Önizleme ({isLandscape ? 'Yatay' : 'Dikey'} Mod) 
+              <span className={styles.dragHint}>- Widget'ları sürükle!</span>
+            </h3>
             <div 
-              className={styles.preview}
-              style={{ background: settings.background.type === 'color' ? settings.background.value : '#0a0a1a' }}
+              ref={previewRef}
+              className={`${styles.preview} ${isLandscape ? styles.landscape : ''} ${draggedWidget ? styles.dragging : ''}`}
+              style={{ 
+                background: settings.background.type === 'color' ? settings.background.value : '#0a0a1a',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+              onMouseMove={handleDragMove}
+              onMouseUp={handleDragEnd}
+              onMouseLeave={handleMouseLeave}
             >
+              {/* Arka plan medya önizleme */}
+              {settings.background.type === 'image' && settings.background.value && (
+                <img
+                  src={settings.background.value.startsWith('data:') 
+                    ? settings.background.value 
+                    : `file://${settings.background.value}`}
+                  alt="Background"
+                  style={{
+                    position: 'absolute',
+                    top: 0, left: 0, width: '100%', height: '100%',
+                    objectFit: 'cover',
+                    filter: `blur(${settings.background.blur * 0.5}px)`,
+                    opacity: 0.9
+                  }}
+                />
+              )}
+              {settings.background.type === 'video' && settings.background.value && (
+                <video
+                  key={settings.background.value}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  style={{
+                    position: 'absolute',
+                    top: 0, left: 0, width: '100%', height: '100%',
+                    objectFit: 'cover',
+                    filter: `blur(${settings.background.blur * 0.5}px)`,
+                    opacity: 0.9
+                  }}
+                >
+                  <source 
+                    src={settings.background.value.startsWith('data:') 
+                      ? settings.background.value 
+                      : `file://${settings.background.value}`} 
+                    type="video/mp4" 
+                  />
+                </video>
+              )}
+              {settings.background.type === 'gif' && settings.background.value && (
+                <img
+                  src={settings.background.value.startsWith('data:') 
+                    ? settings.background.value 
+                    : `file://${settings.background.value}`}
+                  alt="GIF Background"
+                  style={{
+                    position: 'absolute',
+                    top: 0, left: 0, width: '100%', height: '100%',
+                    objectFit: 'cover',
+                    filter: `blur(${settings.background.blur * 0.5}px)`,
+                    opacity: 0.9
+                  }}
+                />
+              )}
+              
+              {/* Gradient overlay for better widget visibility */}
+              <div style={{
+                position: 'absolute',
+                top: 0, left: 0, right: 0, bottom: 0,
+                background: 'radial-gradient(ellipse at center, transparent 0%, rgba(0,0,0,0.3) 100%)',
+                pointerEvents: 'none'
+              }} />
+              
+              {/* Pozisyon göstergeleri (sürüklerken görünür) */}
+              {draggedWidget && (
+                <div className={styles.positionOverlay}>
+                  {Object.entries(POSITION_COORDS).map(([posId, coords]) => {
+                    const isOccupied = getOccupiedPositions(draggedWidget).has(posId);
+                    return (
+                      <div
+                        key={posId}
+                        className={`${styles.dropZone} ${hoveredPosition === posId ? styles.active : ''} ${isOccupied ? styles.occupied : ''}`}
+                        style={{
+                          left: `${coords.x}%`,
+                          top: `${coords.y}%`,
+                          transform: 'translate(-50%, -50%)'
+                        }}
+                      >
+                        <div className={styles.dropZoneInner}>
+                          {isOccupied && <span className={styles.occupiedIcon}>✕</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               {settings.widgets.filter(w => w.enabled).map(widget => {
                 const Icon = WIDGET_ICONS[widget.type];
                 const styleConfig = getStyleConfig(settings.globalStyle || 'modern', widget.color);
                 const isSelected = selectedWidget === widget.id;
+                const isDragging = draggedWidget === widget.id;
                 const isClock = widget.type === 'clock';
                 const isCyber = settings.globalStyle === 'cyber';
                 const isNeon = settings.globalStyle === 'neon';
@@ -171,27 +444,47 @@ export default function Widgets() {
                 const isGradient = settings.globalStyle === 'gradient';
                 const mockValue = 45;
                 
+                // Sürüklenirken pozisyon
+                const widgetOpacity = widget.opacity ?? 1;
+                const widgetStyle = isDragging && dragPosition
+                  ? {
+                      left: `${dragPosition.x}%`,
+                      top: `${dragPosition.y}%`,
+                      transform: `translate(-50%, -50%) scale(${widget.size / 100})`,
+                      transformOrigin: 'center center',
+                      zIndex: 100,
+                      opacity: 0.9,
+                      cursor: 'grabbing',
+                    }
+                  : {
+                      ...getPositionStyle(widget.position, widget.size / 100),
+                      opacity: widgetOpacity,
+                      cursor: 'grab',
+                    };
+                
                 return (
                   <motion.div
                     key={widget.id}
-                    className={`${styles.previewWidget} ${isSelected ? styles.selected : ''}`}
+                    className={`${styles.previewWidget} ${isSelected ? styles.selected : ''} ${isDragging ? styles.isDragging : ''}`}
                     style={{
-                      ...getPositionStyle(widget.position),
+                      ...widgetStyle,
                       background: styleConfig.background,
                       border: styleConfig.border,
                       borderBottom: styleConfig.borderBottom,
                       borderRadius: styleConfig.borderRadius,
-                      boxShadow: styleConfig.boxShadow,
-                      transform: `${getPositionStyle(widget.position).transform || ''} scale(${widget.size / 100})`,
-                      outline: isSelected ? `2px solid ${widget.color}` : 'none',
+                      boxShadow: isDragging ? `0 10px 40px rgba(0,0,0,0.5), 0 0 0 2px ${widget.color}` : styleConfig.boxShadow,
+                      outline: isSelected && !isDragging ? `2px solid ${widget.color}` : 'none',
                       outlineOffset: '2px',
                       padding: isMinimal ? '10px' : '12px',
                       overflow: 'hidden',
                       minWidth: isClock ? '110px' : '100px',
                       minHeight: isClock ? '115px' : '85px',
+                      transition: isDragging ? 'none' : 'all 0.3s ease',
+                      userSelect: 'none',
                     }}
-                    onClick={() => setSelectedWidget(widget.id)}
-                    whileHover={{ scale: widget.size / 100 * 1.05 }}
+                    onMouseDown={(e) => handleDragStart(e, widget.id)}
+                    onClick={() => !draggedWidget && setSelectedWidget(widget.id)}
+                    animate={isDragging ? {} : undefined}
                   >
                     {/* Modern - Inner Glow */}
                     {isModern && (
@@ -531,7 +824,8 @@ export default function Widgets() {
                 { id: 'neon', icon: '💡', label: 'Neon' },
                 { id: 'minimal', icon: '✨', label: 'Minimal' },
                 { id: 'gradient', icon: '🌈', label: 'Gradient' },
-                { id: 'cyber', icon: '🤖', label: 'Cyber' }
+                { id: 'cyber', icon: '🤖', label: 'Cyber' },
+                { id: 'unified', icon: '📊', label: 'Unified' }
               ].map(style => (
                 <motion.button
                   key={style.id}
@@ -544,6 +838,24 @@ export default function Widgets() {
                   <span>{style.label}</span>
                 </motion.button>
               ))}
+            </div>
+            
+            <div className={styles.settingGroup} style={{ marginTop: '16px' }}>
+              <label className={styles.settingLabel}>
+                🔆 Global Opaklık: {Math.round((settings.globalOpacity ?? 1) * 100)}%
+              </label>
+              <input
+                type="range"
+                className={styles.slider}
+                min={10}
+                max={100}
+                step={1}
+                value={Math.round((settings.globalOpacity ?? 1) * 100)}
+                onChange={(e) => {
+                  const val = Number(e.target.value) / 100;
+                  handleGlobalOpacityChange(val);
+                }}
+              />
             </div>
           </div>
 
@@ -580,20 +892,37 @@ export default function Widgets() {
               </div>
 
               <div className={styles.settingGroup}>
+                <label className={styles.settingLabel}>Opaklık: {Math.round((selected.opacity ?? 1) * 100)}%</label>
+                <input
+                  type="range"
+                  className={styles.slider}
+                  min="10"
+                  max="100"
+                  value={Math.round((selected.opacity ?? 1) * 100)}
+                  onChange={(e) => handleUpdate(selected.id, { opacity: parseInt(e.target.value) / 100 })}
+                />
+              </div>
+
+              <div className={styles.settingGroup}>
                 <label className={styles.settingLabel}>
                   <Move size={14} /> Pozisyon
                 </label>
                 <div className={styles.positionGrid}>
-                  {POSITIONS.map(pos => (
-                    <button
-                      key={pos.id}
-                      className={`${styles.posBtn} ${selected.position === pos.id ? styles.active : ''}`}
-                      onClick={() => handleUpdate(selected.id, { position: pos.id })}
-                      title={pos.pos}
-                    >
-                      {pos.label}
-                    </button>
-                  ))}
+                  {POSITIONS.map(pos => {
+                    const isOccupied = getOccupiedPositions(selected.id).has(pos.id);
+                    const isCurrentPos = selected.position === pos.id;
+                    return (
+                      <button
+                        key={pos.id}
+                        className={`${styles.posBtn} ${isCurrentPos ? styles.active : ''} ${isOccupied ? styles.disabled : ''}`}
+                        onClick={() => !isOccupied && handleUpdate(selected.id, { position: pos.id })}
+                        title={isOccupied ? `${pos.pos} - Dolu` : pos.pos}
+                        disabled={isOccupied}
+                      >
+                        {pos.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </motion.div>

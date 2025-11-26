@@ -3,28 +3,21 @@ import { AppSettings, SystemData, PCMessage, PhoneMessage, BackgroundConfig } fr
 import { DEFAULT_SETTINGS, DEFAULT_SYSTEM_DATA } from '../config/defaults';
 import { getServerUrl } from '../config/server';
 
-const RECONNECT_INTERVAL = 3000; // 3 saniye
-const HEARTBEAT_INTERVAL = 5000; // 5 saniye
+// Bağlantı ayarları
+const RECONNECT_INTERVAL = 3000;
+const HEARTBEAT_INTERVAL = 15000; // 15 saniye - daha seyrek
+const MAX_RECONNECT_ATTEMPTS = 15;
+const RECONNECT_BACKOFF = 1.3;
 
-const isValidBackgroundValue = (type: BackgroundConfig['type'], value: unknown) => {
-  if (typeof value !== 'string') {
-    return false;
-  }
+// Debug modu - sadece geliştirme modunda log
+const DEBUG = typeof __DEV__ !== 'undefined' ? __DEV__ : false;
+const log = (...args: any[]) => { if (DEBUG) console.log(...args); };
 
-  if (type === 'color') {
-    return true;
-  }
-
+const isValidBackgroundValue = (type: BackgroundConfig['type'], value: unknown): boolean => {
+  if (typeof value !== 'string' || !value) return false;
+  if (type === 'color') return true;
   const normalized = value.trim();
-  if (normalized.startsWith('data:')) {
-    return true;
-  }
-
-  if (/^(file|content|https?):\/\//i.test(normalized)) {
-    return true;
-  }
-
-  return false;
+  return normalized.startsWith('data:') || /^(file|content|https?):\/\//i.test(normalized);
 };
 
 interface UseSocketReturn {
@@ -38,208 +31,276 @@ interface UseSocketReturn {
 
 export const useSocket = (url?: string): UseSocketReturn => {
   const serverUrl = url || getServerUrl();
+
+  // Refs
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const isConnectingRef = useRef(false);
+  const isMountedRef = useRef(true);
 
+  // State
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
   const [lastError, setLastError] = useState<string | null>(null);
   const [systemData, setSystemData] = useState<SystemData>(DEFAULT_SYSTEM_DATA);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
 
+  // Timer temizleme
+  const clearTimers = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+  }, []);
+
   const sendMessage = useCallback((message: PhoneMessage) => {
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify(message));
+    const ws = socketRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(JSON.stringify(message));
+      } catch {
+        // Sessiz hata - bağlantı kapanıyor olabilir
+      }
     }
   }, []);
 
   const handleMessage = useCallback((event: WebSocketMessageEvent) => {
+    if (!isMountedRef.current) return;
+
     try {
       const message: PCMessage = JSON.parse(event.data);
+      const { type, payload, timestamp } = message;
 
-      switch (message.type) {
+      switch (type) {
         case 'data':
-          setSystemData(message.payload as SystemData);
+          setSystemData(payload as SystemData);
           break;
+
         case 'settings':
-          // PC'den gelen tüm ayarları kabul et - widget'lar ve globalStyle dahil
-          if (message.payload) {
+          if (payload) {
             setSettings(prev => {
-              const incomingBg = message.payload.background;
+              const incomingBg = payload.background;
               let nextBackground = prev.background;
 
               if (incomingBg) {
                 const targetType = incomingBg.type || prev.background.type;
-                const shouldUseIncomingValue = isValidBackgroundValue(targetType, incomingBg.value);
-
-                if (!shouldUseIncomingValue && typeof incomingBg.value !== 'undefined') {
-                  console.warn('⚠️ Geçersiz background değeri (data URI değil), mevcut medya korunuyor.');
-                }
-
+                const isValid = isValidBackgroundValue(targetType, incomingBg.value);
                 nextBackground = {
                   ...prev.background,
                   ...incomingBg,
                   type: targetType,
                   blur: incomingBg.blur ?? prev.background.blur,
-                  value: shouldUseIncomingValue && typeof incomingBg.value === 'string'
-                    ? incomingBg.value
-                    : prev.background.value,
+                  value: isValid ? incomingBg.value : prev.background.value,
                 };
               }
 
               return {
                 ...prev,
-                widgets: message.payload.widgets || prev.widgets,
+                widgets: payload.widgets || prev.widgets,
                 background: nextBackground,
-                globalStyle: message.payload.globalStyle || prev.globalStyle,
+                globalStyle: payload.globalStyle || prev.globalStyle,
+                globalOpacity: payload.globalOpacity ?? prev.globalOpacity,
+                orientation: payload.orientation || prev.orientation,
               };
             });
           }
           break;
+
         case 'background':
-          console.log('📦 Background mesajı alındı:', {
-            type: message.payload.type,
-            valueLength: message.payload.value?.length,
-            valueStart: message.payload.value?.substring(0, 50),
-            blur: message.payload.blur
-          });
-          setSettings(prev => ({ 
-            ...prev, 
+          log('📦 Background:', payload.type);
+          setSettings(prev => ({
+            ...prev,
             background: {
               ...prev.background,
-              ...message.payload,
-              blur: message.payload.blur ?? prev.background.blur,
-            }
+              ...payload,
+              blur: payload.blur ?? prev.background.blur,
+            },
           }));
           break;
+
         case 'widget_update':
           setSettings(prev => ({
             ...prev,
-            widgets: prev.widgets.map(w => 
-              w.id === message.payload.id ? { ...w, ...message.payload } : w
+            widgets: prev.widgets.map(w =>
+              w.id === payload.id ? { ...w, ...payload } : w
             ),
           }));
           break;
+
         case 'command':
-          handleCommand(message.payload);
+          log('📨 Command:', payload);
           break;
       }
 
-      // ACK gönder
-      sendMessage({
-        type: 'ack',
-        payload: { messageTimestamp: message.timestamp },
-        timestamp: Date.now(),
-      });
-    } catch (error) {
-      console.error('Mesaj işleme hatası:', error);
+      // Sadece data mesajları için ACK
+      if (type === 'data' && timestamp) {
+        sendMessage({
+          type: 'ack',
+          payload: { messageTimestamp: timestamp },
+          timestamp: Date.now(),
+        });
+      }
+    } catch {
+      // JSON parse hatası - sessiz geç
     }
   }, [sendMessage]);
 
-  const handleCommand = (command: any) => {
-    // Komutları işle (ileride genişletilebilir)
-    console.log('Komut alındı:', command);
-  };
+  const scheduleReconnect = useCallback(() => {
+    if (!isMountedRef.current) return;
 
-  const connect = useCallback(() => {
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
+    const attempts = reconnectAttemptsRef.current;
+    if (attempts >= MAX_RECONNECT_ATTEMPTS) {
+      setLastError('Bağlantı kurulamadı');
+      setConnectionStatus('error');
       return;
     }
 
-    setConnectionStatus('connecting');
-    setLastError(null);
+    const delay = Math.min(RECONNECT_INTERVAL * Math.pow(RECONNECT_BACKOFF, attempts), 30000);
+    log(`🔄 Reconnect: ${Math.round(delay / 1000)}s (${attempts + 1}/${MAX_RECONNECT_ATTEMPTS})`);
+
+    reconnectTimeoutRef.current = setTimeout(() => {
+      if (isMountedRef.current) {
+        reconnectAttemptsRef.current++;
+        connectInternal();
+      }
+    }, delay);
+  }, []);
+
+  const connectInternal = useCallback(() => {
+    // Çift bağlantı engelle
+    if (isConnectingRef.current) return;
+    if (socketRef.current?.readyState === WebSocket.OPEN) return;
+    if (socketRef.current?.readyState === WebSocket.CONNECTING) return;
+
+    // Eski bağlantıyı temiz kapat
+    if (socketRef.current) {
+      const oldWs = socketRef.current;
+      oldWs.onopen = null;
+      oldWs.onmessage = null;
+      oldWs.onerror = null;
+      oldWs.onclose = null;
+      try { oldWs.close(); } catch {}
+      socketRef.current = null;
+    }
+
+    clearTimers();
+    isConnectingRef.current = true;
+    
+    if (isMountedRef.current) {
+      setConnectionStatus('connecting');
+      setLastError(null);
+    }
 
     try {
-      // WebSocket bağlantısı
       const ws = new WebSocket(serverUrl);
 
       ws.onopen = () => {
-        console.log('WebSocket bağlantısı kuruldu');
+        if (!isMountedRef.current) {
+          ws.close();
+          return;
+        }
+
+        log('✅ Bağlandı');
+        isConnectingRef.current = false;
+        reconnectAttemptsRef.current = 0;
+
         setIsConnected(true);
         setConnectionStatus('connected');
         setLastError(null);
 
-        // Durum gönder
+        // Durum mesajı
         sendMessage({
           type: 'status',
-          payload: { status: 'connected', device: 'Note3-Dashboard' },
+          payload: { status: 'connected', device: 'PCDashboard' },
           timestamp: Date.now(),
         });
 
-        // Heartbeat başlat
+        // Heartbeat
         heartbeatIntervalRef.current = setInterval(() => {
-          sendMessage({
-            type: 'status',
-            payload: { status: 'heartbeat' },
-            timestamp: Date.now(),
-          });
+          if (ws.readyState === WebSocket.OPEN) {
+            sendMessage({
+              type: 'status',
+              payload: { status: 'heartbeat' },
+              timestamp: Date.now(),
+            });
+          }
         }, HEARTBEAT_INTERVAL);
       };
 
       ws.onmessage = handleMessage;
 
-      ws.onerror = (error) => {
-        console.error('WebSocket hatası:', error);
-        setLastError('Bağlantı hatası');
-        setConnectionStatus('error');
+      ws.onerror = () => {
+        // Sadece flag güncelle, state onclose'da
+        isConnectingRef.current = false;
       };
 
-      ws.onclose = () => {
-        console.log('WebSocket bağlantısı kapandı');
+      ws.onclose = (event) => {
+        isConnectingRef.current = false;
+        socketRef.current = null;
+        clearTimers();
+
+        if (!isMountedRef.current) return;
+
+        log('🔌 Bağlantı kapandı:', event.code);
         setIsConnected(false);
         setConnectionStatus('disconnected');
-        socketRef.current = null;
 
-        // Heartbeat durdur
-        if (heartbeatIntervalRef.current) {
-          clearInterval(heartbeatIntervalRef.current);
+        // Normal kapanma değilse yeniden bağlan
+        if (event.code !== 1000) {
+          scheduleReconnect();
         }
-
-        // Otomatik yeniden bağlan
-        reconnectTimeoutRef.current = setTimeout(() => {
-          connect();
-        }, RECONNECT_INTERVAL);
       };
 
       socketRef.current = ws;
-    } catch (error) {
-      console.error('Bağlantı oluşturma hatası:', error);
-      setLastError('Bağlantı oluşturulamadı');
-      setConnectionStatus('error');
-
-      // Yeniden dene
-      reconnectTimeoutRef.current = setTimeout(() => {
-        connect();
-      }, RECONNECT_INTERVAL);
+    } catch {
+      isConnectingRef.current = false;
+      if (isMountedRef.current) {
+        setLastError('Bağlantı hatası');
+        setConnectionStatus('error');
+        scheduleReconnect();
+      }
     }
-  }, [serverUrl, handleMessage, sendMessage]);
+  }, [serverUrl, handleMessage, sendMessage, clearTimers, scheduleReconnect]);
 
   const reconnect = useCallback(() => {
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-    }
-    if (socketRef.current) {
-      socketRef.current.close();
-    }
-    connect();
-  }, [connect]);
+    reconnectAttemptsRef.current = 0;
+    clearTimers();
 
+    if (socketRef.current) {
+      socketRef.current.onclose = null;
+      try { socketRef.current.close(); } catch {}
+      socketRef.current = null;
+    }
+
+    isConnectingRef.current = false;
+    connectInternal();
+  }, [connectInternal, clearTimers]);
+
+  // Mount/Unmount
   useEffect(() => {
-    connect();
+    isMountedRef.current = true;
+    connectInternal();
 
     return () => {
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
-      if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current);
-      }
+      isMountedRef.current = false;
+      clearTimers();
+
       if (socketRef.current) {
-        socketRef.current.close();
+        socketRef.current.onopen = null;
+        socketRef.current.onmessage = null;
+        socketRef.current.onerror = null;
+        socketRef.current.onclose = null;
+        try { socketRef.current.close(); } catch {}
+        socketRef.current = null;
       }
     };
-  }, [connect]);
+  }, []);
 
   return {
     isConnected,

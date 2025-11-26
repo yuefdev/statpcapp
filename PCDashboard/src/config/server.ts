@@ -14,7 +14,7 @@ export const SERVER_CONFIG = {
   EMULATOR_URL: 'ws://10.0.2.2:7700',
   
   // Aktif bağlantı modu: 'tunnel' | 'local' | 'wifi' | 'emulator'
-  MODE: 'emulator',
+  MODE: 'local',
 };
 
 export const getServerUrl = () => {

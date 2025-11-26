@@ -46,6 +46,9 @@ export interface WidgetConfig {
   refreshRate: number; // ms
   customTitle?: string;
   dataKey?: string; // Hangi veriyi gösterecek
+  color?: string; // Widget accent rengi
+  size?: number; // Widget boyutu (%)
+  opacity?: number; // Widget opaklığı (0.1 - 1.0)
 }
 
 // Arka Plan Ayarları
@@ -77,7 +80,10 @@ export interface ThemeConfig {
 }
 
 // Widget Stil Tipi
-export type WidgetStyleType = 'modern' | 'glass' | 'neon' | 'minimal' | 'gradient' | 'cyber';
+export type WidgetStyleType = 'modern' | 'glass' | 'neon' | 'minimal' | 'gradient' | 'cyber' | 'unified';
+
+// Ekran Yönü
+export type OrientationType = 'portrait' | 'landscape';
 
 // Genel Ayarlar
 export interface AppSettings {
@@ -86,6 +92,8 @@ export interface AppSettings {
   amoledProtection: AmoledProtectionConfig;
   widgets: WidgetConfig[];
   globalStyle: WidgetStyleType;
+  globalOpacity: number; // 0.1 - 1.0, tüm widget'lar için genel opaklık
+  orientation: OrientationType;
   screenAlwaysOn: boolean;
   hideStatusBar: boolean;
   hideNavigationBar: boolean;
