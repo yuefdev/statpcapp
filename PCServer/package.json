@@ -1,0 +1,21 @@
+{
+  "name": "pc-dashboard-server",
+  "version": "1.0.0",
+  "description": "PC Dashboard Telefon Kontrol Sunucusu",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["dashboard", "kiosk", "hardware-monitor"],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "node-notifier": "^10.0.1",
+    "open": "^11.0.0",
+    "systeminformation": "^5.27.11",
+    "ws": "^8.18.3"
+  }
+}

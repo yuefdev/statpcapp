@@ -1,0 +1,148 @@
+{
+  "theme": {
+    "mode": "dark",
+    "primaryColor": "#3b82f6",
+    "secondaryColor": "#1e40af",
+    "backgroundColor": "#0f172a",
+    "textColor": "#ffffff",
+    "accentColor": "#3b82f6"
+  },
+  "background": {
+    "type": "color",
+    "value": "#0f172a",
+    "blur": 0,
+    "opacity": 1,
+    "fit": "cover"
+  },
+  "amoledProtection": {
+    "enabled": true,
+    "mode": "pixelShift",
+    "interval": 10,
+    "duration": 2,
+    "shakeIntensity": 5
+  },
+  "widgets": [
+    {
+      "id": "cpu-1",
+      "type": "cpu",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0,
+        "width": 2,
+        "height": 2
+      },
+      "style": {
+        "backgroundColor": "rgba(20, 20, 30, 0.85)",
+        "borderColor": "#a855f7",
+        "borderWidth": 1,
+        "borderRadius": 16,
+        "opacity": 1,
+        "textColor": "#ffffff",
+        "titleColor": "#94a3b8",
+        "accentColor": "#a855f7",
+        "fontSize": 14,
+        "showTitle": true,
+        "showIcon": true,
+        "showGraph": true,
+        "graphColor": "#a855f7",
+        "graphStyle": "area"
+      },
+      "refreshRate": 1000
+    },
+    {
+      "id": "gpu-1",
+      "type": "gpu",
+      "enabled": true,
+      "position": {
+        "x": 2,
+        "y": 0,
+        "width": 2,
+        "height": 2
+      },
+      "style": {
+        "backgroundColor": "rgba(20, 20, 30, 0.85)",
+        "borderColor": "#22c55e",
+        "borderWidth": 1,
+        "borderRadius": 16,
+        "opacity": 1,
+        "textColor": "#ffffff",
+        "titleColor": "#94a3b8",
+        "accentColor": "#22c55e",
+        "fontSize": 14,
+        "showTitle": true,
+        "showIcon": true,
+        "showGraph": true,
+        "graphColor": "#22c55e",
+        "graphStyle": "area"
+      },
+      "refreshRate": 1000
+    },
+    {
+      "id": "ram-1",
+      "type": "ram",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 2,
+        "width": 4,
+        "height": 2
+      },
+      "style": {
+        "backgroundColor": "rgba(20, 20, 30, 0.85)",
+        "borderColor": "#06b6d4",
+        "borderWidth": 1,
+        "borderRadius": 16,
+        "opacity": 1,
+        "textColor": "#ffffff",
+        "titleColor": "#94a3b8",
+        "accentColor": "#06b6d4",
+        "fontSize": 14,
+        "showTitle": true,
+        "showIcon": true,
+        "showGraph": true,
+        "graphColor": "#06b6d4",
+        "graphStyle": "area"
+      },
+      "refreshRate": 1000
+    },
+    {
+      "id": "clock-1",
+      "type": "clock",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 4,
+        "width": 4,
+        "height": 2
+      },
+      "style": {
+        "backgroundColor": "rgba(20, 20, 30, 0.85)",
+        "borderColor": "#3b82f6",
+        "borderWidth": 1,
+        "borderRadius": 16,
+        "opacity": 1,
+        "textColor": "#ffffff",
+        "titleColor": "#94a3b8",
+        "accentColor": "#3b82f6",
+        "fontSize": 32,
+        "showTitle": true,
+        "showIcon": true,
+        "showGraph": false,
+        "graphColor": "#3b82f6",
+        "graphStyle": "area"
+      },
+      "refreshRate": 1000
+    }
+  ],
+  "screenAlwaysOn": true,
+  "hideStatusBar": true,
+  "hideNavigationBar": true,
+  "animationsEnabled": true,
+  "animationSpeed": 1,
+  "server": {
+    "port": 7700,
+    "refreshRate": 1000,
+    "adbAutoForward": true
+  }
+}

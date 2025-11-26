@@ -1,0 +1,47 @@
+.titlebar {
+  height: 40px;
+  background: linear-gradient(90deg, #050510, #0a0a20);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 16px;
+  -webkit-app-region: drag;
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--purple);
+}
+
+.buttons {
+  display: flex;
+  gap: 4px;
+  -webkit-app-region: no-drag;
+}
+
+.btn {
+  width: 36px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.btn:hover {
+  background: var(--border);
+  color: white;
+}
+
+.close:hover {
+  background: var(--red);
+  color: white;
+}

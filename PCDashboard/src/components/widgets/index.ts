@@ -1,0 +1,9 @@
+export { default as BaseWidget } from './BaseWidget';
+export { default as CpuWidget } from './CpuWidget';
+export { default as GpuWidget } from './GpuWidget';
+export { default as RamWidget } from './RamWidget';
+export { default as DiskWidget } from './DiskWidget';
+export { default as NetworkWidget } from './NetworkWidget';
+export { default as TemperatureWidget } from './TemperatureWidget';
+export { default as FanWidget } from './FanWidget';
+export { default as ClockWidget } from './ClockWidget';

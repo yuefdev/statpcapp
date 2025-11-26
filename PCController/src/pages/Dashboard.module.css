@@ -1,0 +1,371 @@
+.page {
+  animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.title {
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: 28px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  letter-spacing: 0.03em;
+}
+
+.title span {
+  font-size: 30px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.card {
+  --card-gradient: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(6, 182, 212, 0.02));
+  --card-border: rgba(255, 255, 255, 0.08);
+  --card-clip: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  --pattern-color: rgba(255, 255, 255, 0.04);
+  --icon-bg: rgba(255, 255, 255, 0.05);
+  --icon-shadow: 0 12px 25px rgba(0, 0, 0, 0.35);
+  --badge-bg: rgba(255, 255, 255, 0.1);
+  --badge-color: #e2e8f0;
+  --chip-bg: rgba(255, 255, 255, 0.08);
+  --chip-color: #f8fafc;
+  --bar-track: rgba(255, 255, 255, 0.1);
+  --bar-fill: linear-gradient(90deg, #3b82f6, #06b6d4);
+  --orbit-color: rgba(59, 130, 246, 0.2);
+  position: relative;
+  padding: 32px;
+  border-radius: 22px;
+  overflow: hidden;
+  background: rgba(5, 8, 24, 0.92);
+  clip-path: var(--card-clip);
+  border: 1px solid transparent;
+  border-color: var(--card-border);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--card-gradient);
+  opacity: 0.9;
+  z-index: 0;
+}
+
+.card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 20% 20%, var(--pattern-color), transparent 55%);
+  opacity: 0.9;
+  mix-blend-mode: screen;
+  z-index: 1;
+}
+
+.card:hover {
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.6);
+}
+
+.cardInner {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.orbit,
+.scanline,
+.cornerOne,
+.cornerTwo {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.orbit {
+  width: 140px;
+  height: 140px;
+  border: 1px solid var(--orbit-color);
+  border-radius: 40% 60% 55% 45% / 55% 45% 55% 45%;
+  top: -30px;
+  right: -40px;
+  filter: blur(0.5px);
+}
+
+.scanline {
+  inset: 0;
+  background: repeating-linear-gradient(120deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.02) 4px, transparent 4px, transparent 16px);
+  animation: moveLines 12s linear infinite;
+}
+
+.cornerOne,
+.cornerTwo {
+  width: 120px;
+  height: 120px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 40px;
+  opacity: 0.4;
+}
+
+.cornerOne {
+  top: -60px;
+  left: -50px;
+}
+
+.cornerTwo {
+  bottom: -50px;
+  right: -60px;
+}
+
+@keyframes moveLines {
+  from { transform: translateX(0); }
+  to { transform: translateX(-80px); }
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.badge {
+  background: var(--badge-bg);
+  color: var(--badge-color);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.status {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.mainRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+
+.label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.65);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.valueRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.value {
+  font-size: 54px;
+  font-weight: 700;
+  line-height: 0.9;
+}
+
+.unit {
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.delta {
+  margin-top: 6px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.iconShell {
+  width: 84px;
+  height: 84px;
+  border-radius: 22px;
+  background: var(--icon-bg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: var(--icon-shadow);
+  overflow: hidden;
+}
+
+.iconShell svg {
+  color: var(--badge-color);
+}
+
+.iconRing {
+  position: absolute;
+  inset: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 18px;
+  animation: pulse 4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.7; }
+}
+
+.barBlock {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.barTrack {
+  flex: 1;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--bar-track);
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  background: var(--bar-fill);
+  border-radius: inherit;
+}
+
+.barText {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metaItem {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.metaItem span {
+  display: block;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.08em;
+}
+
+.metaItem strong {
+  margin-top: 6px;
+  display: block;
+  font-size: 16px;
+}
+
+.footer {
+  display: flex;
+  gap: 12px;
+}
+
+.chip {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--chip-bg);
+  color: var(--chip-color);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chip span {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+}
+
+.chip strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 15px;
+}
+
+.card[data-theme='cpu'] {
+  --card-gradient: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(30, 27, 75, 0.8)), radial-gradient(circle at 20% 20%, rgba(236, 72, 153, 0.25), transparent 55%);
+  --card-border: rgba(236, 72, 153, 0.45);
+  --card-clip: polygon(0 0, 88% 0, 100% 28%, 100% 100%, 12% 100%, 0 78%);
+  --pattern-color: rgba(252, 211, 255, 0.15);
+  --icon-bg: linear-gradient(180deg, rgba(168, 85, 247, 0.35), rgba(76, 29, 149, 0.45));
+  --icon-shadow: 0 18px 40px rgba(168, 85, 247, 0.5);
+  --badge-bg: rgba(168, 85, 247, 0.18);
+  --badge-color: #f5d0fe;
+  --chip-bg: rgba(168, 85, 247, 0.12);
+  --chip-color: #fdf4ff;
+  --bar-track: rgba(168, 85, 247, 0.18);
+  --bar-fill: linear-gradient(90deg, #c084fc, #f472b6);
+  --orbit-color: rgba(168, 85, 247, 0.28);
+}
+
+.card[data-theme='gpu'] {
+  --card-gradient: linear-gradient(135deg, rgba(34, 197, 94, 0.18), rgba(6, 78, 59, 0.8)), radial-gradient(circle at 80% 30%, rgba(16, 185, 129, 0.25), transparent 55%);
+  --card-border: rgba(16, 185, 129, 0.4);
+  --card-clip: polygon(0 0, 100% 0, 100% 76%, 76% 100%, 0 100%);
+  --pattern-color: rgba(16, 185, 129, 0.18);
+  --icon-bg: linear-gradient(200deg, rgba(45, 212, 191, 0.35), rgba(6, 95, 70, 0.5));
+  --icon-shadow: 0 18px 40px rgba(16, 185, 129, 0.45);
+  --badge-bg: rgba(16, 185, 129, 0.16);
+  --badge-color: #d1fae5;
+  --chip-bg: rgba(16, 185, 129, 0.14);
+  --chip-color: #ecfdf5;
+  --bar-track: rgba(16, 185, 129, 0.2);
+  --bar-fill: linear-gradient(90deg, #22c55e, #0ea5e9);
+  --orbit-color: rgba(45, 212, 191, 0.32);
+}
+
+.card[data-theme='ram'] {
+  --card-gradient: linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(15, 23, 42, 0.85)), radial-gradient(circle at 20% 60%, rgba(59, 130, 246, 0.25), transparent 55%);
+  --card-border: rgba(14, 165, 233, 0.45);
+  --card-clip: polygon(0 0, 100% 0, 100% 85%, 78% 100%, 20% 100%, 0 88%);
+  --pattern-color: rgba(59, 130, 246, 0.16);
+  --icon-bg: linear-gradient(190deg, rgba(14, 165, 233, 0.35), rgba(15, 118, 251, 0.4));
+  --icon-shadow: 0 18px 40px rgba(59, 130, 246, 0.45);
+  --badge-bg: rgba(14, 165, 233, 0.16);
+  --badge-color: #e0f2fe;
+  --chip-bg: rgba(14, 165, 233, 0.12);
+  --chip-color: #e0f2fe;
+  --bar-track: rgba(59, 130, 246, 0.2);
+  --bar-fill: linear-gradient(90deg, #38bdf8, #818cf8);
+  --orbit-color: rgba(59, 130, 246, 0.3);
+}
+
+@media (max-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .title {
+    font-size: 22px;
+  }
+
+  .mainRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .footer {
+    flex-direction: column;
+  }
+}

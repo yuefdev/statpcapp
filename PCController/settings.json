@@ -1,0 +1,50 @@
+{
+  "background": {
+    "type": "video",
+    "value": "C:\\Users\\HP\\Downloads\\cosmic-sakura-gaze-moewalls-com.mp4",
+    "blur": 0
+  },
+  "globalStyle": "gradient",
+  "widgets": [
+    {
+      "id": "cpu-1",
+      "type": "cpu",
+      "enabled": true,
+      "style": "gradient",
+      "color": "#a855f7",
+      "position": "tl",
+      "size": 120
+    },
+    {
+      "id": "gpu-1",
+      "type": "gpu",
+      "enabled": true,
+      "style": "gradient",
+      "color": "#22c55e",
+      "position": "tr",
+      "size": 120
+    },
+    {
+      "id": "ram-1",
+      "type": "ram",
+      "enabled": true,
+      "style": "gradient",
+      "color": "#06b6d4",
+      "position": "bl",
+      "size": 120
+    },
+    {
+      "id": "clock-1",
+      "type": "clock",
+      "enabled": true,
+      "style": "gradient",
+      "color": "#3b82f6",
+      "position": "br",
+      "size": 123
+    }
+  ],
+  "server": {
+    "port": 7700,
+    "refreshRate": 1000
+  }
+}
